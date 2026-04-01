@@ -5,9 +5,11 @@
 #include "niEmbCan.h"
 
 #include "FRC_FPGA_ChipObject/RoboRIO_FRC_ChipObject_Aliases.h"
+#include "FRC_FPGA_ChipObject/nRoboRIO_FPGANamespace/nInterfaceGlobals.h"
 #include "FRC_FPGA_ChipObject/nRoboRIO_FPGANamespace/tDIO.h"
 #include "FRC_FPGA_ChipObject/tSystem.h"
 
+#include <memory>
 #include <signal.h>
 #include <time.h>
 
@@ -42,6 +44,9 @@ int main() {
 
   int32_t status = 0;
 
+  // Set target class for roboRIO before accessing the FPGA
+  nFPGA::nRoboRIO_FPGANamespace::g_currentTargetClass = 0x40;
+
   // Open ChipObject session to the FRC FPGA image
   nFPGA::tSystem fpgaSystem(&status);
   if (status != 0) {
@@ -49,8 +54,8 @@ int main() {
   }
 
   // Create DIO interface from the FPGA
-  nFPGA::nRoboRIO_FPGANamespace::tDIO* dio =
-      nFPGA::nRoboRIO_FPGANamespace::tDIO::create(&status);
+  std::unique_ptr<nFPGA::nRoboRIO_FPGANamespace::tDIO> dio{
+      nFPGA::nRoboRIO_FPGANamespace::tDIO::create(&status)};
   if (status != 0 || dio == nullptr) {
     return 1;
   }
@@ -59,14 +64,12 @@ int main() {
   tNiEmbCANHandle canHandle;
   status = niEmbCANOpenSession(0, 1000000, 32, &canHandle);
   if (status != 0) {
-    delete dio;
     return 1;
   }
 
   status = niEmbCANStart(canHandle);
   if (status != 0) {
     niEmbCANCloseSession(canHandle);
-    delete dio;
     return 1;
   }
 
@@ -106,6 +109,5 @@ int main() {
 
   niEmbCANStop(canHandle);
   niEmbCANCloseSession(canHandle);
-  delete dio;
   return 0;
 }
